@@ -59,7 +59,7 @@ class CallList(Sequence, Sized):
         self._calls = []
 
 
-class RadiusMock(object):
+class RadiusMock:
 
     def __init__(self):
         self._calls = CallList()
@@ -69,7 +69,7 @@ class RadiusMock(object):
         self._request_data = {}
         self._calls.reset()
 
-    def setdata(self, server=None, rpacket=None, response=AccessReject, response_data=None, timeout=False):
+    def setdata(self, server=None, rpacket=None, response=AccessReject, response_data=None, timeout=False, ma=False, broken_ma=False):
         self._request_data = {
             'server': server,
             'packet': rpacket,
@@ -77,6 +77,8 @@ class RadiusMock(object):
             'response_data': response_data or {},
             'timeout': timeout
         }
+        self.message_authenticator = ma
+        self.broken_ma = broken_ma
 
     @property
     def calls(self):
@@ -116,6 +118,15 @@ class RadiusMock(object):
             raise Timeout()
         reply = pkt.CreateReply(**self._request_data.get("response_data"))
         reply.code = self._request_data.get("response", AccessReject)
+        if self.message_authenticator:
+            # Server is supposed to ignore packets
+            # with broken or non M-A
+            if not ("Message-Authenticator" in pkt and pkt.verify_message_authenticator()):
+                raise Timeout()
+            reply.add_message_authenticator()
+            if not self.broken_ma:
+                reply._refresh_message_authenticator()
+
         return reply
 
     def start(self):

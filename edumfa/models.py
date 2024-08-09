@@ -40,7 +40,7 @@ from edumfa.lib.crypto import (encrypt,
                                     SecretObj,
                                     get_rand_digit_str)
 from sqlalchemy import and_
-from sqlalchemy.schema import Sequence
+from sqlalchemy.schema import Sequence, CreateSequence
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.exc import IntegrityError
 from .lib.log import log_with
@@ -70,7 +70,17 @@ def compile_datetime_mysql(type_, compiler, **kw):  # pragma: no cover
     return "DATETIME(6)"
 
 
-class MethodsMixin(object):
+# Fix creation of sequences on MariaDB (and MySQL, which does not support
+# sequences anyway) with galera by adding INCREMENT BY 0 to CREATE SEQUENCE
+@compiles(CreateSequence, 'mysql')
+@compiles(CreateSequence, 'mariadb')
+def increment_by_zero(element, compiler, **kw):  # pragma: no cover
+    text = compiler.visit_create_sequence(element, **kw)
+    text = text + " INCREMENT BY 0"
+    return text
+
+
+class MethodsMixin:
     """
     This class mixes in some common Class table functions like
     delete and save
@@ -112,7 +122,7 @@ def save_config_timestamp(invalidate_config=True):
         invalidate_config_object()
 
 
-class TimestampMethodsMixin(object):
+class TimestampMethodsMixin:
     """
     This class mixes in the table functions including update of the timestamp
     """
@@ -2415,6 +2425,7 @@ class RADIUSServer(MethodsMixin, db.Model):
     * a secret
     * timeout in seconds (default 5)
     * retries (default 3)
+    * Enforcement of the Message-Authenticator attribute
 
     These RADIUS server definition can be used in RADIUS tokens or in a
     radius passthru policy.
@@ -2433,6 +2444,7 @@ class RADIUSServer(MethodsMixin, db.Model):
     description = db.Column(db.Unicode(2000), default='')
     timeout = db.Column(db.Integer, default=5)
     retries = db.Column(db.Integer, default=3)
+    enforce_ma = db.Column(db.Boolean(), default=False)
 
     def save(self):
         """
@@ -2461,6 +2473,8 @@ class RADIUSServer(MethodsMixin, db.Model):
                 values["timeout"] = int(self.timeout)
             if self.retries is not None:
                 values["retries"] = int(self.retries)
+            if self.enforce_ma is not None:
+                values["enforce_ma"] = self.enforce_ma
             RADIUSServer.query.filter(RADIUSServer.identifier ==
                                       self.identifier).update(values)
             ret = radius.id

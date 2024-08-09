@@ -29,6 +29,8 @@ import os
 
 import logging
 from importlib import import_module
+from urllib.parse import unquote
+
 import binascii
 import base64
 import sqlalchemy
@@ -557,7 +559,7 @@ def parse_proxy(proxy_settings):
         for proxy in proxies_list:
             p_list = proxy.split(">")
             if len(p_list) > 1:
-                proxypath = tuple(IPNetwork(proxynet) for proxynet in p_list)
+                proxypath = tuple(IPNetwork(proxynet.strip()) for proxynet in p_list)
             else:
                 # No mapping client, so we take the whole network
                 proxypath = (IPNetwork(p_list[0]), IPNetwork("0.0.0.0/0"))
@@ -1078,7 +1080,7 @@ def censor_connect_string(connect_string):
     """
     try:
         parsed = sqlalchemy.engine.url.make_url(connect_string)
-        return parsed.__repr__()
+        return unquote(parsed.__repr__())
     except Exception:
         return "<error when censoring connect string>"
 

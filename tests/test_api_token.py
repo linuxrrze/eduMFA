@@ -1748,6 +1748,7 @@ class APITokenTestCase(MyApiTestCase):
                                            data={"type": "certificate",
                                                  "genkey": "1",
                                                  "user": "cornelius",
+                                                 "pin": "pin",
                                                  "realm": self.realm1,
                                                  "ca": "localCA"},
                                            method="POST",
@@ -2182,7 +2183,7 @@ class APITokenTestCase(MyApiTestCase):
             self.assertTrue(result.get("value"))
             detail = res.json.get("detail")
             googleurl = detail.get("googleurl")
-            self.assertTrue("sha256" in googleurl.get("value"))
+            self.assertTrue("SHA256" in googleurl.get("value"))
             serial = detail.get("serial")
             token = get_tokens(serial=serial)[0]
             self.assertEqual(token.hashlib, "sha256")

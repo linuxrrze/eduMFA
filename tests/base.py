@@ -19,7 +19,7 @@ PWFILE = "tests/testdata/passwords"
 PWFILE2 = "tests/testdata/passwd"
 
 
-class FakeFlaskG(object):
+class FakeFlaskG:
     policy_object = None
     logged_in_user = {}
     audit_object = None
@@ -69,7 +69,7 @@ class MyTestCase(unittest.TestCase):
         save_config_timestamp()
         db.session.commit()
         # Create an admin for tests.
-        create_db_admin(cls.app, cls.testadmin, cls.testadminmail, cls.testadminpw)
+        create_db_admin(cls.testadmin, cls.testadminmail, cls.testadminpw)
 
     def tearDown(self):
         # Commit all changes to the DB and close the session to avoid breaking
@@ -253,11 +253,14 @@ class OverrideConfigTestCase(MyTestCase):
 
 
 class MyApiTestCase(MyTestCase):
+
+    locale = "en"
+
     @classmethod
     def cls_auth(cls, app):
         with app.test_request_context('/auth', data={"username": cls.testadmin,
                                                      "password": cls.testadminpw},
-                                      method='POST'):
+                                      method='POST', headers={"Accept-Language": cls.locale}):
             res = app.full_dispatch_request()
             assert res.status_code == 200
             result = res.json.get("result")

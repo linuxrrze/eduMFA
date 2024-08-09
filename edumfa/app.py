@@ -70,7 +70,6 @@ from edumfa.config import config
 from edumfa.models import db
 from edumfa.lib.crypto import init_hsm
 
-
 ENV_KEY = "EDUMFA_CONFIGFILE"
 
 
@@ -79,6 +78,7 @@ class PiResponseClass(Response):
     To avoid caching problems with the json property in the Response class,
     the property is overwritten using a non-caching approach.
     """
+
     @property
     def json(self):
         """This will contain the parsed JSON data if the mimetype indicates
@@ -86,14 +86,18 @@ class PiResponseClass(Response):
         will be ``None``.
         Caching of the json data is disabled.
         """
-        return self.get_json(cache=False)
+        return self.get_json()
 
     default_mimetype = 'application/json'
 
 
+def get_locale():
+    return get_accepted_language(request)
+
+
 def create_app(config_name="development",
                config_file='/etc/edumfa/edumfa.cfg',
-               silent=False, init_hsm=False):
+               silent=False, init_hsm=False, script=False):
     """
     First the configuration from the config.py is loaded depending on the
     config type like "production" or "development" or "testing".
@@ -179,7 +183,8 @@ def create_app(config_name="development",
     app.register_blueprint(tokengroup_blueprint, url_prefix='/tokengroup')
     app.register_blueprint(serviceid_blueprint, url_prefix='/serviceid')
     db.init_app(app)
-    migrate = Migrate(app, db)
+    if not script:
+        migrate = Migrate(app, db)
 
     app.response_class = PiResponseClass
 
@@ -218,11 +223,7 @@ def create_app(config_name="development",
         DEFAULT_LOGGING_CONFIG["loggers"]["edumfa"]["level"] = level
         logging.config.dictConfig(DEFAULT_LOGGING_CONFIG)
 
-    babel = Babel(app)
-
-    @babel.localeselector
-    def get_locale():
-        return get_accepted_language(request)
+    babel = Babel(app, locale_selector=get_locale)
 
     queue.register_app(app)
 
